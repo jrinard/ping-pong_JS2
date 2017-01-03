@@ -8,9 +8,10 @@ var source = require('vinyl-source-stream');
 var concat = require('gulp-concat');
 var uglify = require('gulp-uglify');//minify
 var utilities = require('gulp-util'); // environmental variable for specifying production of development
+var buildProduction = utilities.env.production; //tells what kind of environment we are using. part of gulp-util
 var del = require('del'); // clean tasks
 var jshint = require('gulp-jshint');//Js hint
-var lib = require('bower-files')({
+var lib = require('bower-files')({ //required for bootstrap
   "overrides":{
     "bootstrap" : {
       "main": [
@@ -23,11 +24,9 @@ var lib = require('bower-files')({
 });
 var browserSync = require('browser-sync').create();
 
-var buildProduction = utilities.env.production; //tells what kind of environment we are using. part of gulp-util
 
 
-//TASKS//----- Build TASKS go in the order concatInterface -> jsBrowserify -> minifyScripts.
-
+//FRONT-END TASKS//
 gulp.task('bowerJS', function () {
   return gulp.src(lib.ext('js').files)
     .pipe(concat('vendor.min.js'))
@@ -39,26 +38,33 @@ gulp.task('bowerCSS', function () {
     .pipe(concat('vendor.css'))
     .pipe(gulp.dest('./build/css'));
 });
-gulp.task('bower', ['bowerJS', 'bowerCSS']);
+gulp.task('bower', ['bowerJS', 'bowerCSS']);//causes bower to run js and css above at the same time.
 
-gulp.task('serve', function() {
+gulp.task('serve', function() { //auto server sync
   browserSync.init({
     server: {
       baseDir: "./",
       index: "index.html"
     }
   });
-
-  gulp.watch(['js/*.js'], ['jsBuild']);
-  gulp.watch(['bower.json'], ['bowerBuild']);
+  //watching from the moment the server is launched
+  gulp.watch(['js/*.js'], ['jsBuild']);// 2 arguments we want gulp to watch
+  gulp.watch(['bower.json'], ['bowerBuild']);// 2 arguments we are watching
+});
+// array of tasks to run whenever any of the files above change // assumes we are working on dev server so we don't need minifyScripts
+gulp.task('jsBuild', ['jsBrowserify', 'jshint'], function(){
+  browserSync.reload();
 });
 
-gulp.task('jsBuild', ['jsBrowserify', 'jshint'], function(){
+//when bower manifest file changes our files will be rebuilt and the browser is reloaded with bowelBuild
+gulp.task('bowerBuild', ['bower'], function(){
   browserSync.reload();
 });
 
 
 
+
+//TASKS//----- Build TASKS go in the order concatInterface -> jsBrowserify -> minifyScripts.
 
 // grabs multiple interface files and combines them into one.
 gulp.task('concatInterface', function() {
@@ -94,7 +100,7 @@ gulp.task('build', ['clean'], function(){
   } else {
     gulp.start('jsBrowserify');
   }
-  gulp.start('bower');
+    gulp.start('bower');
 });
 
 //js hint linter
